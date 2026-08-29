@@ -1,0 +1,39 @@
+name: Terraform CI/CD - Dev Only
+
+on:
+  push:
+    branches: [main, feature/*]
+  workflow_dispatch: {}
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+
+jobs:
+  terraform-dev:
+    name: Terraform Plan & Apply (dev)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: environment/dev
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: environment/dev
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: environment/dev
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Terraform Apply
+        # Only auto-apply on push to main; feature branches just plan (safety check)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        working-directory: environment/dev
+        run: terraform apply -input=false -auto-approve tfplan
